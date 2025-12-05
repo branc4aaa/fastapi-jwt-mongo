@@ -5,6 +5,16 @@ from .db import users_collection
 from .schemas import UserResponse
 from bson import ObjectId
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES"))
+
+
 router = APIRouter(prefix="", tags=["User"])
 
 security = HTTPBearer()
@@ -22,9 +32,8 @@ async def get_user(user_id: str, token: dict = Depends(token_v)):
         raise HTTPException(status_code=404, detail="User not found")
     return UserResponse(
         id=str(user["_id"]),
-        username=user["username"],
+        name=user["name"],
         email=user["email"],
-        full_name=user.get("full_name"),
     )
 @router.get("/users")
 async def get_users():
@@ -36,7 +45,12 @@ async def get_users():
         users.append({
             "id": str(u["_id"]),
             "name": u.get("name"),
-            "email": u.get("email")
+            "email": u.get("email"),
+            "token": u.get("refresh_token"),
+            "token2": u.get("access_token")
         })
 
     return users
+@router.get("/test-token")
+def test_token(token: dict = Depends(token_v)):
+    return {"message": "Token is valid", "token_data": token}

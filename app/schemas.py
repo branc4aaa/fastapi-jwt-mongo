@@ -13,3 +13,6 @@ class UserResponse(BaseModel):
     id: str
     name: str
     email: EmailStr
+
+class RefreshSchema(BaseModel):
+    refresh_token: str

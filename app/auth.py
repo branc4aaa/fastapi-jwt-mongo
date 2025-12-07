@@ -27,9 +27,15 @@ def verify_password(password: str, hashed: str):
 def create_access_token(data: dict):
     payload = data.copy()
     payload["exp"] = datetime.utcnow() + timedelta(minutes=JWT_EXPIRES_MINUTES)
-    if payload["exp"] > datetime.utcnow() - timedelta(minutes=JWT_EXPIRES_MINUTES):
-        payload["exp"] = datetime.utcnow() + timedelta(minutes=JWT_EXPIRES_MINUTES)
-        return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    payload["type"] = "access"
+
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+#JWT creation for refresh token
+def create_refresh_token(data: dict):
+    payload = data.copy()
+    payload["exp"] = datetime.utcnow() + timedelta(days=7)
+    payload["type"] = "refresh"
 
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

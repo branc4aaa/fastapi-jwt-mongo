@@ -23,7 +23,7 @@ def hash_password(password: str):
 def verify_password(password: str, hashed: str):
     return pwd_context.verify(password, hashed)
 
-# JWT creation
+# JWT creation for access token
 def create_access_token(data: dict):
     payload = data.copy()
     payload["exp"] = datetime.utcnow() + timedelta(minutes=JWT_EXPIRES_MINUTES)
@@ -40,19 +40,21 @@ def create_refresh_token(data: dict):
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 # JWT verification
-def verify_token(token: str):
+def verify_token(token: str, token_type: str = "access"):
     try:
         decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        
+
+        if decoded.get("type") != token_type:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token type"
+            )
+
         return decoded
-    
+
     except ExpiredSignatureError:
-        raise HTTPException(
-            status_code=401,
-            detail="Token expired"
-        )
+        raise HTTPException(status_code=401, detail="Token expired")
 
     except InvalidTokenError:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid token"
-        )
+        raise HTTPException(status_code=401, detail="Invalid token")

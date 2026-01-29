@@ -4,9 +4,6 @@ from bson import ObjectId
 from .db import users_collection
 from dotenv import load_dotenv
 import os
-from jwt import ExpiredSignatureError, InvalidTokenError
-import jwt
-
 
 from fastapi import HTTPException,  APIRouter, status
 
@@ -54,27 +51,26 @@ async def login(user: LoginSchema):
     }
 
 @app_router.post("/refresh")
-async def refresh_token(data: RefreshSchema):
-    re_token = data.refresh_token 
-    try:
-        decoded = jwt.decode(re_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+async def refresh(data: RefreshSchema):
 
-        if decoded.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Not a refresh token")
+    decoded = verify_token(data.refresh_token, "refresh")
 
-        user_id = decoded["user_id"]
+    user_id = decoded.get("user_id")
 
-        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
 
-        if not user or user.get("refresh_token") != re_token:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+    if not user:
+        raise HTTPException(404, "User not found")
+    if user.get("refresh_token") != data.refresh_token:
+        raise HTTPException(401, "Invalid refresh token")
 
-        new_access = create_access_token({"user_id": user_id})
+    new_access = create_access_token({
+        "user_id": user_id,
+        "email": user["email"]
+    })
 
-        return {"access_token": new_access}
+    return {
+        "access_token": new_access,
+        "token_type": "bearer"
+    }
 
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Refresh token expired")
-
-    except InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")

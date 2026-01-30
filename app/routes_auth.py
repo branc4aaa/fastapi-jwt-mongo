@@ -14,7 +14,7 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES"))
 
-
+#User signup
 @app_router.post("/register")
 async def register(user: RegisterSchema):
     searchUser = await users_collection.find_one({"email": user.email})
@@ -29,6 +29,7 @@ async def register(user: RegisterSchema):
     newU = await users_collection.insert_one(nu)
     return {"id": str(newU.inserted_id), "name": user.name, "email": user.email}
 
+#User login
 @app_router.post("/login")
 async def login(user: LoginSchema):
     su = await users_collection.find_one({"email": user.email})
@@ -50,6 +51,7 @@ async def login(user: LoginSchema):
         "token_type": "bearer"
     }
 
+#Token refresh
 @app_router.post("/refresh")
 async def refresh(data: RefreshSchema):
 

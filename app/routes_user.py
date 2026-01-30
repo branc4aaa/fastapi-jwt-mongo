@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from .auth import verify_token
 from .db import users_collection
-from .schemas import UserResponse
+from .schemas import UserResponse, UpdateUserSchema
 from bson import ObjectId
 from bson.errors import InvalidId
 
@@ -14,7 +14,7 @@ security = HTTPBearer()
 async def token_v(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    print("RAW:", credentials.scheme, credentials.credentials)
+    
     token = credentials.credentials  
     decoded = verify_token(token, "access")
 
@@ -22,6 +22,7 @@ async def token_v(
         raise HTTPException(status_code=401, detail="Token invalid or expired")
     return decoded
 
+# get user by id
 @router.get("/user/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str, token: dict = Depends(token_v)):
     try:
@@ -37,6 +38,8 @@ async def get_user(user_id: str, token: dict = Depends(token_v)):
         name=user["name"],
         email=user["email"],
     )
+
+#get all users
 @router.get("/users")
 async def get_users():
 
@@ -52,15 +55,12 @@ async def get_users():
             "token2": u.get("access_token")
         })
 
-    return users
-#@router.post("/test-token/{user_id}")
-#async def test_token( user_id:str, data, token = Depends(token_v)):
-#    
-#    data = await users_collection.find_one({"_id": ObjectId(user_id)})
-#    if not data:
-#        raise HTTPException(status_code=404, detail="User not found")
-#    data["_id"] = str(data["_id"])
-#    return {"message": "Token is valid", "user": data}
+    if not users:
+        raise HTTPException(status_code=404, detail="No users found")
+
+    return users 
+
+#test token validity
 @router.post("/test-token/{user_id}")
 async def test_token(user_id: str,sec=Depends(token_v)):
 
@@ -77,4 +77,52 @@ async def test_token(user_id: str,sec=Depends(token_v)):
     user["_id"] = str(user["_id"])
 
     return {"message": "Token is valid","user": user}
+
+#put user
+@router.put("/user/{user_id}")
+async def update_user(user_id: str, data:UpdateUserSchema, token = Depends(token_v)):
+
+    try:
+        oid = ObjectId(user_id)
+    except InvalidId:
+        raise HTTPException(400, "Invalid user id")
+
+    user = await users_collection.find_one({"_id": oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    existing_user = await users_collection.find_one(
+        {"email": data.email, "_id": {"$ne": oid}}
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already in use"
+        )
+
+    await users_collection.update_one(
+        {"_id": oid},
+        {"$set": {
+            "name": data.name,
+            "email": data.email
+        }}
+    )
+
+    return {"message": "User updated successfully"}
+
+#delete user
+@router.delete("/user/{user_id}")
+async def delete_user(user_id: str, token = Depends(token_v)):
+
+    try:
+        oid = ObjectId(user_id)
+    except InvalidId:
+        raise HTTPException(400, "Invalid user id")
+
+    user = await users_collection.find_one({"_id": oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await users_collection.delete_one({"_id": oid})
+    return {"message": "User deleted successfully"}
 

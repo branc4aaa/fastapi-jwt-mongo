@@ -45,7 +45,7 @@ async def login(user: LoginSchema):
         {"_id": su["_id"]},
         {"$set": {"refresh_token": refresh}}
     )
-    return {
+    return {'user_id': str(su["_id"]),
         "access_token": access,
         "refresh_token": refresh,
         "token_type": "bearer"
